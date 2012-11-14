@@ -11,6 +11,7 @@ require 'excon'
 require 'base64'
 require 'pp'
 require 'timeout'
+require "rexml/document"
 
 module Icinga
   EXIT_OK = 0
@@ -43,6 +44,8 @@ module Icinga
                    :min => -1,
                    :warn => 1,
                    :crit => 1,
+                   :warn_nm => 1,
+                   :crit_nm => 1,
                    :exclude => [],
                    :base_url => "http://localhost:2812",
                    :status_uri => "_status?format=xml&level=summary",
@@ -53,11 +56,17 @@ module Icinga
         opts.on("--min N", Integer, "Number of services to expect.") do |arg|
           @options[:min] = arg
         end
-        opts.on("--warn N", Integer, "Warning level") do |arg|
+        opts.on("--warn N", Integer, "Warning level for services in bad state") do |arg|
           @options[:warn] = arg
         end
-        opts.on("--crit N", Integer, "Critical level") do |arg|
+        opts.on("--crit N", Integer, "Critical level for service in bad state") do |arg|
           @options[:crit] = arg
+        end
+        opts.on("--warn-not-monitored N", Integer, "Warning level for not monitored services") do |arg|
+          @options[:warn_nm] = arg
+        end
+        opts.on("--crit-not-monitored N", Integer, "Critical level for not monitored services") do |arg|
+          @options[:crit_nm] = arg
         end
         opts.on("--username NAME", "HTTP username") do |arg|
           @options[:username] = arg
@@ -114,6 +123,25 @@ module Icinga
       return state
     end
 
+    def parse(xml_string)
+      states = { :services => 0, :good_status => 0, :bad_status => 0, :monitored => 0, :not_monitored => 0 }
+      doc = REXML::Document.new xml_string
+      doc.elements.each("monit/service") do |serv|
+        n = get_val(serv, "name")
+        states[:services] += 1
+        s = get_val(serv, "status")
+        s == "0" ? states[:good_status] += 1 : states[:bad_status] += 1
+        m = get_val(serv, "monitor")
+        m == "1" ? states[:monitored] += 1 : states[:not_monitored] += 1
+      end
+      puts states
+      states
+    end
+
+    def get_val(node, attribute, default=nil)
+      node.elements[attribute].nil? ? default : node.elements[attribute].text
+    end
+
     def check_services
       params = @options[:excon].merge({ :path => @options[:status_uri],
                                         :headers => headers })
@@ -125,32 +153,41 @@ module Icinga
           Excon.get(@options[:base_url], params)
         end
         result[:timeout] = false
-        validate(resp)
-        #state = parse(validate(resp))
-        #result = state["status"]["service_status"].inject(result) { |memo, s| analyze_state(memo, s, "OK", "service") }
+        validate resp
+        puts resp.body
+        result = parse resp.body
       rescue Timeout::Error => e
       end
-      return check_limits(result, "services")
+      return check_limits(result)
     end
 
-    def check_limits(result, msg)
+    def check_limits(result)
       if result[:timeout]
         @stdout.puts "CRIT: Timeout after #{@options[:timeout]}"
         return EXIT_CRIT
       end
-#      if @options[:min] > result[:ok] + result[:fail]
-#        @stdout.puts "CRIT: Only #{result[:ok] + result[:fail]} #{msg} found (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-#        return EXIT_CRIT
-#      end
-#      if result[:fail] >= @options[:crit]
-#        @stdout.puts "CRIT: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-#        return EXIT_CRIT
-#      end
-#      if result[:fail] >= @options[:warn]
-#        @stdout.puts "WARN: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-#        return EXIT_WARN
-#      end
-#      @stdout.puts "OK: #{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other."
+      msg = "(#{result[:good_status]}=ok, #{result[:bad_status]}=fail, #{result[:monitored]}=monitored, #{result[:not_monitored]}=NOT monitored)."
+      if @options[:min] > result[:services]
+        @stdout.puts "CRIT: due to number of services: only #{result[:services]} found #{msg}"
+        return EXIT_CRIT
+      end
+      if result[:bad_status] >= @options[:crit]
+        @stdout.puts "CRIT: due to status #{msg}"
+        return EXIT_CRIT
+      end
+      if result[:not_monitored] >= @options[:crit_nm]
+        @stdout.puts "CRIT: due to NOT monitored #{msg}"
+        return EXIT_CRIT
+      end
+      if result[:bad_status] >= @options[:warn]
+        @stdout.puts "WARN: due to status #{msg}"
+        return EXIT_WARN
+      end
+      if result[:not_monitored] >= @options[:warn_nm]
+        @stdout.puts "WARN: due to NOT monitored #{msg}"
+        return EXIT_WARN
+      end
+      @stdout.puts "OK: #{msg}"
       return EXIT_OK
     end
   end
