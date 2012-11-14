@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'stringio'
+require 'rexml/document'
 
 module Icinga
   describe CheckMonit do
@@ -17,37 +18,33 @@ module Icinga
       end
     end
 
-#    describe "#check" do
-#      let(:stdopts) { {:stdout => stdout, :stderr => stderr, :excon => {:mock => true} } }
-#      before(:each) do
-#        Excon.stubs.clear
-#      end
-#      describe "#check_hosts" do
-#
-#        it "Will return ok, when all hosts are good" do
-#          resp = {
-#            "cgi_json_version"=>"1.5.0",
-#            "status"=>
-#            {"host_status"=> [{"host"=>"host1",
-#                                "status"=>"UP",
-#                                "last_check"=>"01-25-2012 17:15:22",
-#                                "duration"=>"9d  8h 18m 50s",
-#                                "attempts"=>"1/3",
-#                                "status_information"=> "HTTP OK"},
-#                              {"host"=>"host2",
-#                                "status"=>"UP",
-#                                "last_check"=>"01-25-2012 17:15:32",
-#                                "duration"=>"9d  7h 58m  4s",
-#                                "attempts"=>"1/3",
-#                                "status_information"=>"PING OK - Packet loss = 0%, RTA = 0.44 ms"}]}}
-#          Excon.stub({:method => :get}, {:body => resp.to_json, :status => 200})
-#
-#          args = [ "--mode", "hosts", "--min", "2" ]
-#          rc = Icinga::CheckIcinga.new(args, stdopts).run
-#
-#          rc.should == Icinga::EXIT_OK
-#          stdout.string.should match(/ok: 2=ok, 0=fail/i)
-#        end
+    describe "#check" do
+      let(:stdopts) { {:stdout => stdout, :stderr => stderr, :excon => {:mock => true} } }
+      before(:each) do
+        Excon.stubs.clear
+      end
+      describe "#check_hosts" do
+
+        it "Will return when there are the minium required services" do
+          xml = <<EOF
+<monit>
+  <service type="5">
+    <name>system</name>
+    <status>0</status>
+    <monitor>1</monitor>
+  </service>
+</monit>
+EOF
+          Excon.stub({:method => :get}, {:body => xml, :status => 200})
+
+          args = [ "--min", "1" ]
+          rc = Icinga::CheckMonit.new(args, stdopts).run
+
+          rc.should == Icinga::EXIT_OK
+          stdout.string.should match(/OK: \(1=ok, 0=fail, 1=monitored, 0=NOT monitored\)./i)
+        end
+      end
+    end
 #
 #        it "Will return warning, when warning limit is reached" do
 #          resp = {
