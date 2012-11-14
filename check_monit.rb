@@ -124,6 +124,7 @@ module Icinga
     end
 
     def parse(xml_string)
+      debug "Raw XML response: #{xml_string}"
       states = { :services => 0, :good_status => 0, :bad_status => 0, :monitored => 0, :not_monitored => 0 }
       doc = REXML::Document.new xml_string
       doc.elements.each("monit/service") do |serv|
@@ -134,7 +135,7 @@ module Icinga
         m = get_val(serv, "monitor")
         m == "1" ? states[:monitored] += 1 : states[:not_monitored] += 1
       end
-      puts states
+      debug "Calculated states: #{states}"
       states
     end
 
@@ -154,7 +155,6 @@ module Icinga
         end
         result[:timeout] = false
         validate resp
-        puts resp.body
         result = parse resp.body
       rescue Timeout::Error => e
       end
