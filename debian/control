@@ -1,11 +1,11 @@
-Source: nagios-remote-icinga
-Maintainer: Jens Braeuer <braeuer.jens@gmail.com>
+Source: nagios-monit
+Maintainer: Hajo Eichler <eichler.hajo@gmail.com>
 Section: misc
 Priority: optional
 Standards-Version: 2.0.1
-Build-Depends: debhelper (>= 8), ruby-rspec, rubygem-excon, rubygem-json
+Build-Depends: debhelper (>= 8), ruby-rspec, rubygem-excon
 
-Package: nagios-remote-icinga
+Package: nagios-monit
 Architecture: all
-Depends: ${ruby:Depends}, ${misc:Depends}, nagios-plugins, rubygem-excon, rubygem-json
-Description: Icinga check
+Depends: ${ruby:Depends}, ${misc:Depends}, nagios-plugins, rubygem-excon
+Description: Nagios Monit check

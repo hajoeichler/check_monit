@@ -1,42 +1,5 @@
-nagios-remote-icinga (0.2.4) unstable; urgency=low
-
-  * Add --exclude
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 05 Oct 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.2.3) unstable; urgency=low
-
-  * Trigger on hard states by default
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 17 Sep 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.2.2) unstable; urgency=low
-
-  * Fix host checks.
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 14 Sep 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.2.1) unstable; urgency=low
-
-  * Dont count services with disabled notification
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 14 Sep 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.2.0) unstable; urgency=low
-
-  * support for ack'ed services and scheduled downtimes
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 14 Sep 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.1.1) unstable; urgency=low
-
-  * --debug switch
-  * --status-cgi switch
-
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 13 Sep 2012 11:11:11 +0100
-
-nagios-remote-icinga (0.1.0) unstable; urgency=low
+nagios-check (0.0.1) unstable; urgency=low
 
   * Packaged as debian package
 
- -- Jens Braeuer <braeuer.jens@gmail.com>  Thu, 13 Sep 2012 11:11:11 +0100
+ -- Hajo Eichler <eichler.hajo@gmail.com>  Thu, 14 Nov 2012 15:02:00 +0100
