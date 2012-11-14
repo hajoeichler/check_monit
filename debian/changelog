@@ -1,4 +1,4 @@
-nagios-check (0.0.1) unstable; urgency=low
+nagios-monit (0.0.1) unstable; urgency=low
 
   * Packaged as debian package
 
