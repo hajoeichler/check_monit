@@ -1,3 +1,9 @@
+nagios-monit (0.0.2) unstable; urgency=low
+
+  * Rename url param to base-url. Add param for port.
+
+ -- Hajo Eichler <eichler.hajo@gmail.com>  Thu, 14 Nov 2012 17:20:00 +0100
+
 nagios-monit (0.0.1) unstable; urgency=low
 
   * Packaged as debian package

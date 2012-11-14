@@ -47,7 +47,8 @@ module Icinga
                    :warn_nm => 1,
                    :crit_nm => 1,
                    :exclude => [],
-                   :base_url => "http://localhost:2812",
+                   :base_url => "http://localhost",
+                   :port => 2812,
                    :status_uri => "_status?format=xml&level=summary",
                    :username => nil,
                    :password => nil }.merge(opts)
@@ -74,10 +75,13 @@ module Icinga
         opts.on("--password password", "HTTP password") do |arg|
           @options[:password] = arg
         end
-        opts.on("--url URL", "URL (default: #{@options[:base_url]})") do |arg|
+        opts.on("--base-url URL", "URL (default: #{@options[:base_url]})") do |arg|
           @options[:base_url] = arg
         end
-        opts.on("--status-uri PATH", "path to XML output (default: #{@options[:status_uri]})") do |arg|
+        opts.on("--port PORT", "Port (default: #{@options[:port]})") do |arg|
+          @options[:port] = arg
+        end
+        opts.on("--status-uri PATH", "Path to XML output (default: #{@options[:status_uri]})") do |arg|
           @options[:status_uri] = arg
         end
         opts.on("--timeout SECONDS", Integer, "Timeout for HTTP request (default: #{@options[:timeout]})") do |arg|
@@ -146,12 +150,12 @@ module Icinga
     def check_services
       params = @options[:excon].merge({ :path => @options[:status_uri],
                                         :headers => headers })
-      debug "Will fetch: #{@options[:base_url]}/#{@options[:status_uri]}"
+      debug "Will fetch: #{@options[:base_url]}:#{@options[:port]}/#{@options[:status_uri]}"
 
       result = init_state
       begin
         resp = Timeout::timeout@options[:timeout] do
-          Excon.get(@options[:base_url], params)
+          Excon.get("#{@options[:base_url]}:#{@options[:port]}", params)
         end
         result[:timeout] = false
         validate resp
