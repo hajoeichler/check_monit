@@ -1,19 +1,14 @@
 #! /usr/bin/ruby
 
-# A Nagios/Icinga plugin to check remote Nagios/Icinga installations.
+# A Nagios/Icinga plugin to check remote Monit installations.
 #
-# This can be used in Cloud-Computing setups, where Icinga is part of
-# setup. This can also be used in bootstrap-scripts.
-#
-# Jens Braeuer, github.com/jbraeuer
-#
+# This can be used in Cloud-Computing setups, where Monit is used for node monitoring
+# and Icinga to monitor the whole environement.
 
 require 'rubygems'
 require 'optparse'
 require 'excon'
-require 'uri'
 require 'base64'
-require 'json'
 require 'pp'
 require 'timeout'
 
@@ -34,36 +29,28 @@ module Icinga
       raise "Did not get HTTP 200 (but a #{resp.status})." unless resp.status == 200
       return resp
     end
-
-    def parse(resp)
-      return JSON.parse(resp.body)
-    end
   end
-  class CheckIcinga
+  class CheckMonit
     include Icinga::HTTPTools
 
     def initialize(args, opts = {:stdout => $stdout, :stderr => $stderr, :excon => {}})
       @args = args
       @modes = [:hosts, :services]
       @stdout, @stderr = opts.delete(:stdout), opts.delete(:stderr)
-      @options = { :mode => nil,
+      @options = { :help => false,
                    :debug => false,
                    :timeout => 10,
                    :min => -1,
                    :warn => 1,
                    :crit => 1,
                    :exclude => [],
-                   :trigger_soft_state => false,
-                   :url => "http://localhost",
-                   :status_cgi => "cgi-bin/icinga/status.cgi",
+                   :base_url => "http://localhost:2812",
+                   :status_uri => "_status?format=xml&level=summary",
                    :username => nil,
                    :password => nil }.merge(opts)
 
-      @parser = OptionParser.new("Check Icinga - Icinga/Nagios plugin to Icinga") do |opts|
-        opts.on("--mode MODE", @modes, "Check mode. Either 'hosts' or 'services'.") do |arg|
-          @options[:mode] = arg
-        end
-        opts.on("--min N", Integer, "Number of hosts/services to expect.") do |arg|
+      @parser = OptionParser.new("Check Monit - Icinga/Nagios plugin to Monit") do |opts|
+        opts.on("--min N", Integer, "Number of services to expect.") do |arg|
           @options[:min] = arg
         end
         opts.on("--warn N", Integer, "Warning level") do |arg|
@@ -78,26 +65,23 @@ module Icinga
         opts.on("--password password", "HTTP password") do |arg|
           @options[:password] = arg
         end
-        opts.on("--url URL", "URL (default: #{@options[:url]})") do |arg|
-          @options[:url] = arg
+        opts.on("--url URL", "URL (default: #{@options[:base_url]})") do |arg|
+          @options[:base_url] = arg
         end
-        opts.on("--status-cgi PATH", "path status.cgi (default: #{@options[:status_cgi]})") do |arg|
-          @options[:status_cgi] = arg
+        opts.on("--status-uri PATH", "path to XML output (default: #{@options[:status_uri]})") do |arg|
+          @options[:status_uri] = arg
         end
         opts.on("--timeout SECONDS", Integer, "Timeout for HTTP request (default: #{@options[:timeout]})") do |arg|
           @options[:timeout] = arg
         end
-        opts.on("--trigger-soft-state", "Trigger on soft-state already") do
-          @options[:trigger_soft_state] = true
-        end
-        opts.on("--exclude PATTERN", "Exclude hosts/service where the name matches the pattern") do |p|
+        opts.on("--exclude PATTERN", "Exclude service where the name matches the pattern") do |p|
           @options[:exclude] << Regexp.new(p)
         end
         opts.on("-d", "--debug") do
           @options[:debug] = true
         end
         opts.on("-h", "--help") do
-          @options[:mode] = :help
+          @options[:help] = true
         end
       end
 
@@ -109,19 +93,11 @@ module Icinga
     end
 
     def run
-      debug "Options are: #{@options.inspect}"
-      case @options[:mode]
-      when :help
+      if @options[:help]
         @stdout.puts @parser
         return EXIT_OK
-      when :hosts
-        return check_hosts
-      when :services
-        return check_services
-      else
-        @stderr.puts "Choose either hosts or services mode"
-        return EXIT_UNKNOWN
       end
+      return check_services
     end
 
     private
@@ -138,76 +114,20 @@ module Icinga
       return state
     end
 
-    def is_last_attempt?(object_state)
-      cur, max = object_state["attempts"].split("/")
-      return cur == max
-    end
-
-    def analyze_state(memory, object_state, ok_string, exclude_key)
-      if object_state["status"] != ok_string
-        if object_state["in_scheduled_downtime"]
-          memory[:other] += 1
-            elsif object_state["has_been_acknowledged"]
-          memory[:other] += 1
-        elsif object_state["notifications_enabled"] == false
-          memory[:other] += 1
-        elsif @options[:trigger_soft_state] or is_last_attempt?(object_state)
-          memory[:fail] += 1
-        elsif not @options[:exclude].select {|ex| ex.match(object_state[exclude_key])}.empty?
-          memory[:other] += 1
-        else
-          memory[:ok] += 1
-        end
-      else
-        memory[:ok] += 1
-      end
-      return memory
-    end
-
-    def check_hosts
-      query = { :hostgroup => "all",
-                :style => "hostdetail",
-                :nostatusheader => nil,
-                :jsonoutput => nil }
-      uri = URI([@options[:url], @options[:status_cgi]].join("/"))
-      params = @options[:excon].merge({ :path => uri.path,
-                                        :query => query,
-                                        :headers => headers })
-      debug "Will fetch: #{uri.scheme}://#{uri.host}"
-      debug "With param: #{params.inspect}"
-
-      result = init_state
-      begin
-        resp = Timeout::timeout@options[:timeout] do
-          Excon.get("#{uri.scheme}://#{uri.host}", params)
-        end
-        result[:timeout] = false
-        state = parse(validate(resp))
-        result = state["status"]["host_status"].inject(result) { |memo, s| analyze_state(memo, s, "UP", "host") }
-      rescue Timeout::Error => e
-      end
-      return check_limits(result, "hosts")
-    end
-
     def check_services
-      query = { :host => "all",
-                :nostatusheader => nil,
-                :jsonoutput => nil }
-      uri = URI([@options[:url], @options[:status_cgi]].join("/"))
-      params = @options[:excon].merge({ :path => uri.path,
-                                       :query => query,
-                                       :headers => headers })
-      debug "Will fetch: #{uri.scheme}://#{uri.host}"
-      debug "With param: #{params.inspect}"
+      params = @options[:excon].merge({ :path => @options[:status_uri],
+                                        :headers => headers })
+      debug "Will fetch: #{@options[:base_url]}/#{@options[:status_uri]}"
 
       result = init_state
       begin
         resp = Timeout::timeout@options[:timeout] do
-          Excon.get("#{uri.scheme}://#{uri.host}", params)
+          Excon.get(@options[:base_url], params)
         end
         result[:timeout] = false
-        state = parse(validate(resp))
-        result = state["status"]["service_status"].inject(result) { |memo, s| analyze_state(memo, s, "OK", "service") }
+        validate(resp)
+        #state = parse(validate(resp))
+        #result = state["status"]["service_status"].inject(result) { |memo, s| analyze_state(memo, s, "OK", "service") }
       rescue Timeout::Error => e
       end
       return check_limits(result, "services")
@@ -218,19 +138,19 @@ module Icinga
         @stdout.puts "CRIT: Timeout after #{@options[:timeout]}"
         return EXIT_CRIT
       end
-      if @options[:min] > result[:ok] + result[:fail]
-        @stdout.puts "CRIT: Only #{result[:ok] + result[:fail]} #{msg} found (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-        return EXIT_CRIT
-      end
-      if result[:fail] >= @options[:crit]
-        @stdout.puts "CRIT: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-        return EXIT_CRIT
-      end
-      if result[:fail] >= @options[:warn]
-        @stdout.puts "WARN: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
-        return EXIT_WARN
-      end
-      @stdout.puts "OK: #{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other."
+#      if @options[:min] > result[:ok] + result[:fail]
+#        @stdout.puts "CRIT: Only #{result[:ok] + result[:fail]} #{msg} found (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
+#        return EXIT_CRIT
+#      end
+#      if result[:fail] >= @options[:crit]
+#        @stdout.puts "CRIT: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
+#        return EXIT_CRIT
+#      end
+#      if result[:fail] >= @options[:warn]
+#        @stdout.puts "WARN: #{result[:fail]} #{msg} fail (#{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other)."
+#        return EXIT_WARN
+#      end
+#      @stdout.puts "OK: #{result[:ok]}=ok, #{result[:fail]}=fail, #{result[:other]}=other."
       return EXIT_OK
     end
   end
@@ -238,7 +158,7 @@ end
 
 if __FILE__ == $0
   begin
-    exit Icinga::CheckIcinga.new(ARGV).run
+    exit Icinga::CheckMonit.new(ARGV).run
   rescue => e
     warn e.message
     warn e.backtrace.join("\n\t")

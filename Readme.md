@@ -1,8 +1,13 @@
-A Nagios/Icinga plugin to check remote Nagios/Icinga installations.
+A Nagios/Icinga plugin to check remote monit installations.
 
-This can be used in scenarios, where Icinga is part of the
-environment. Then a "2nd level" Icinga can check, that all "1st level"
-instances are fine.
+This can be used in scenarios, when using monit as node centric montitoring tools
+and on top using Icinga to monitor a whole environment.
+
+This gives you feedback of there are any unmoniorted monit checks.
+
+# Background
+
+This plugin is based on Jens Braeuer's remote icinga plugin: https://github.com/jbraeuer/check_remote_icinga
 
 # Installation
 
@@ -10,7 +15,7 @@ instances are fine.
 
 ```
 gem install excon
-cp check_remote_icinga.rb /usr/lib/nagios/plugins
+cp check_monit.rb /usr/lib/nagios/plugins
 ```
 
 ## As Debian package
@@ -22,15 +27,11 @@ cp check_remote_icinga.rb /usr/lib/nagios/plugins
 
 Send me your changes via pull-request.
 
-# Things to improve
-
-1. Better/any support for acknowledged errors
-1. Output click-able link, so user can visit 1st-level Icinga
-
 # License
 
-GPLv3. Let me know if you have other suggestions
+GPLv3
 
-# Author
+# Authors
 
+Hajo Eichler
 Jens Braeuer
