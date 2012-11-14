@@ -1,5 +1,5 @@
 *~
 .\#*
-debian/nagios-remote-icinga.*
-debian/nagios-remote-icinga
+debian/nagios-monit.*
+debian/nagios-monit
 debian/files
