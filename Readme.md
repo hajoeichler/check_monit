@@ -9,6 +9,10 @@ This gives you feedback of there are any unmoniorted monit checks.
 
 This plugin is based on Jens Braeuer's remote icinga plugin: https://github.com/jbraeuer/check_remote_icinga
 
+# Status
+
+[![Build Status](https://travis-ci.org/hajoeichler/check_monit.png)](https://travis-ci.org/hajoeichler/check_monit)
+
 # Installation
 
 ## As file
