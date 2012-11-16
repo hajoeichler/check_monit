@@ -37,5 +37,5 @@ GPLv3
 
 # Authors
 
-Hajo Eichler
-Jens Braeuer
+- Hajo Eichler
+- Jens Braeuer
