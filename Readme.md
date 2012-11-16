@@ -3,7 +3,7 @@ A Nagios/Icinga plugin to check remote monit installations.
 This can be used in scenarios, when using monit as node centric montitoring tools
 and on top using Icinga to monitor a whole environment.
 
-This gives you feedback of there are any unmoniorted monit checks.
+This gives you feedback if there are any unmoniorted monit checks and about their state.
 
 # Background
 
