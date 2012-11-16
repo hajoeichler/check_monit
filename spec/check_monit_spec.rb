@@ -39,7 +39,7 @@ EOF
         rc = Icinga::CheckMonit.new(args, stdopts).run
 
         rc.should == Icinga::EXIT_OK
-        stdout.string.should match(/OK: \(1=ok, 0=fail, 1=monitored, 0=NOT monitored\)./i)
+        stdout.string.should match(/OK: \(1=ok, 0=fail, 0=not monitored\)./i)
       end
       it "Will return FAIL when the number of services in bad state is above or equal the critical level" do
         xml = <<EOF
@@ -57,7 +57,7 @@ EOF
         rc = Icinga::CheckMonit.new(args, stdopts).run
 
         rc.should == Icinga::EXIT_CRIT
-        stdout.string.should match(/CRIT: due to status \(0=ok, 1=fail, 1=monitored, 0=NOT monitored\)./i)
+        stdout.string.should match(/CRIT: due to status \(0=ok, 1=fail, 0=not monitored\)./i)
       end
       it "Will return WARN when the number of unmonitored services is above or equal the critical level" do
         xml = <<EOF
@@ -75,7 +75,7 @@ EOF
         rc = Icinga::CheckMonit.new(args, stdopts).run
 
         rc.should == Icinga::EXIT_WARN
-        stdout.string.should match(/WARN: due to NOT monitored \(1=ok, 0=fail, 0=monitored, 1=NOT monitored\)./i)
+        stdout.string.should match(/WARN: due to not monitored \(0=ok, 0=fail, 1=not monitored\)./i)
       end
     end
   end

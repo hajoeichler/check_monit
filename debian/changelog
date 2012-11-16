@@ -1,3 +1,9 @@
+nagios-monit (0.0.3) unstable; urgency=low
+
+  * Provide which services are in fail or unmonitored state.
+
+ -- Hajo Eichler <eichler.hajo@gmail.com>  Thu, 16 Nov 2012 17:16:00 +0100
+
 nagios-monit (0.0.2) unstable; urgency=low
 
   * Rename url param to base-url. Add param for port.

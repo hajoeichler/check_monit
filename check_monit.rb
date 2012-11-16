@@ -129,15 +129,15 @@ module Icinga
 
     def parse(xml_string)
       debug "Raw XML response: #{xml_string}"
-      states = { :services => 0, :good_status => 0, :bad_status => 0, :monitored => 0, :not_monitored => 0 }
+      states = { :services => 0, :bad_status => [], :not_monitored => [] }
       doc = REXML::Document.new xml_string
       doc.elements.each("monit/service") do |serv|
         n = get_val(serv, "name")
         states[:services] += 1
         s = get_val(serv, "status")
-        s == "0" ? states[:good_status] += 1 : states[:bad_status] += 1
+        states[:bad_status] << n unless s == "0"
         m = get_val(serv, "monitor")
-        m == "1" ? states[:monitored] += 1 : states[:not_monitored] += 1
+        states[:not_monitored] << n unless m == "1"
       end
       debug "Calculated states: #{states}"
       states
@@ -170,25 +170,27 @@ module Icinga
         @stdout.puts "CRIT: Timeout after #{@options[:timeout]}"
         return EXIT_CRIT
       end
-      msg = "(#{result[:good_status]}=ok, #{result[:bad_status]}=fail, #{result[:monitored]}=monitored, #{result[:not_monitored]}=NOT monitored)."
+      msg = "(#{result[:services] - result[:bad_status].size - result[:not_monitored].size }=ok, #{result[:bad_status].size}=fail, #{result[:not_monitored].size}=not monitored)."
+      msg = "#{msg}\nFailed: #{result[:bad_status].join(', ')}" unless result[:bad_status].empty?
+      msg = "#{msg}\nNot monitored: #{result[:not_monitored].join(', ')}" unless result[:not_monitored].empty?
       if @options[:min] > result[:services]
         @stdout.puts "CRIT: due to number of services: only #{result[:services]} found #{msg}"
         return EXIT_CRIT
       end
-      if result[:bad_status] >= @options[:crit]
+      if result[:bad_status].size >= @options[:crit]
         @stdout.puts "CRIT: due to status #{msg}"
         return EXIT_CRIT
       end
-      if result[:not_monitored] >= @options[:crit_nm]
-        @stdout.puts "CRIT: due to NOT monitored #{msg}"
+      if result[:not_monitored].size >= @options[:crit_nm]
+        @stdout.puts "CRIT: due to not monitored #{msg}"
         return EXIT_CRIT
       end
-      if result[:bad_status] >= @options[:warn]
+      if result[:bad_status].size >= @options[:warn]
         @stdout.puts "WARN: due to status #{msg}"
         return EXIT_WARN
       end
-      if result[:not_monitored] >= @options[:warn_nm]
-        @stdout.puts "WARN: due to NOT monitored #{msg}"
+      if result[:not_monitored].size >= @options[:warn_nm]
+        @stdout.puts "WARN: due to not monitored #{msg}"
         return EXIT_WARN
       end
       @stdout.puts "OK: #{msg}"
