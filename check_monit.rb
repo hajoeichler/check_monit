@@ -170,7 +170,8 @@ module Icinga
         @stdout.puts "CRIT: Timeout after #{@options[:timeout]}"
         return EXIT_CRIT
       end
-      msg = "(#{result[:services] - result[:bad_status].size - result[:not_monitored].size }=ok, #{result[:bad_status].size}=fail, #{result[:not_monitored].size}=not monitored)."
+      ok = result[:services] - ((result[:bad_status].size + result[:not_monitored].size) - (result[:bad_status] & result[:not_monitored]).size)
+      msg = "(#{ok}=ok, #{result[:bad_status].size}=fail, #{result[:not_monitored].size}=not monitored)."
       msg = "#{msg}\nFailed: #{result[:bad_status].join(', ')}" unless result[:bad_status].empty?
       msg = "#{msg}\nNot monitored: #{result[:not_monitored].join(', ')}" unless result[:not_monitored].empty?
       if @options[:min] > result[:services]
