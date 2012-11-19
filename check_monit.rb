@@ -130,16 +130,20 @@ module Icinga
 
     def parse(xml_string)
       debug "Raw XML response: #{xml_string}"
-      states = { :uptime => 0, :services => 0, :bad_status => [], :not_monitored => [] }
+      states = { :uptime => 0, :services => 0, :bad_status => [], :not_monitored => [], :init_monitoring => [] }
       doc = REXML::Document.new xml_string
       states[:uptime] = get_val(doc, "monit/server/uptime", "#{@options[:uptime_threshold]}").to_i
       debug "Uptime: #{states[:uptime]}"
       doc.elements.each("monit/service") do |serv|
         n = get_val serv, "name"
-        states[:services] += 1
         s = get_val serv, "status"
-        states[:bad_status] << n unless s == "0"
         m = get_val serv, "monitor"
+        states[:services] += 1
+        if m == "2"
+          states[:init_monitoring] << n
+          next # ignore status when a service is in 'MONITOR_INIT' state - happens after 'monit unmonitor all'
+        end
+        states[:bad_status] << n unless s == "0"
         states[:not_monitored] << n unless m == "1"
       end
       debug "Calculated states: #{states.map{ |e| e.join '='}.join ', '}"
@@ -177,6 +181,7 @@ module Icinga
       msg = "(#{ok}=ok, #{result[:bad_status].size}=fail, #{result[:not_monitored].size}=not monitored)."
       msg = "#{msg}\nFailed: #{result[:bad_status].join(', ')}" unless result[:bad_status].empty?
       msg = "#{msg}\nNot monitored: #{result[:not_monitored].join(', ')}" unless result[:not_monitored].empty?
+      msg = "#{msg}\nInitialize monitoring: #{result[:init_monitoring].join(', ')}" unless result[:init_monitoring].empty?
       if result[:uptime] < @options[:uptime_threshold]
         @stdout.puts "OK: Monit startup less than 5 minutes ago #{msg}"
         return EXIT_OK
