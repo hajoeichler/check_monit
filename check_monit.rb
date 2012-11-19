@@ -41,6 +41,7 @@ module Icinga
       @options = { :help => false,
                    :debug => false,
                    :timeout => 10,
+                   :uptime_threshold => 300,
                    :min => -1,
                    :warn => 1,
                    :crit => 1,
@@ -49,7 +50,7 @@ module Icinga
                    :exclude => [],
                    :base_url => "http://localhost",
                    :port => 2812,
-                   :status_uri => "_status?format=xml&level=summary",
+                   :status_uri => "_status?format=xml&level=full",
                    :username => nil,
                    :password => nil }.merge(opts)
 
@@ -129,17 +130,19 @@ module Icinga
 
     def parse(xml_string)
       debug "Raw XML response: #{xml_string}"
-      states = { :services => 0, :bad_status => [], :not_monitored => [] }
+      states = { :uptime => 0, :services => 0, :bad_status => [], :not_monitored => [] }
       doc = REXML::Document.new xml_string
+      states[:uptime] = get_val(doc, "monit/server/uptime", "#{@options[:uptime_threshold]}").to_i
+      debug "Uptime: #{states[:uptime]}"
       doc.elements.each("monit/service") do |serv|
-        n = get_val(serv, "name")
+        n = get_val serv, "name"
         states[:services] += 1
-        s = get_val(serv, "status")
+        s = get_val serv, "status"
         states[:bad_status] << n unless s == "0"
-        m = get_val(serv, "monitor")
+        m = get_val serv, "monitor"
         states[:not_monitored] << n unless m == "1"
       end
-      debug "Calculated states: #{states}"
+      debug "Calculated states: #{states.map{ |e| e.join '='}.join ', '}"
       states
     end
 
@@ -174,6 +177,10 @@ module Icinga
       msg = "(#{ok}=ok, #{result[:bad_status].size}=fail, #{result[:not_monitored].size}=not monitored)."
       msg = "#{msg}\nFailed: #{result[:bad_status].join(', ')}" unless result[:bad_status].empty?
       msg = "#{msg}\nNot monitored: #{result[:not_monitored].join(', ')}" unless result[:not_monitored].empty?
+      if result[:uptime] < @options[:uptime_threshold]
+        @stdout.puts "OK: Monit startup less than 5 minutes ago #{msg}"
+        return EXIT_OK
+      end
       if @options[:min] > result[:services]
         @stdout.puts "CRIT: due to number of services: only #{result[:services]} found #{msg}"
         return EXIT_CRIT

@@ -1,3 +1,9 @@
+nagios-monit (0.0.4) unstable; urgency=low
+
+  * Do not alert for problems found 5 minutes after monit startup
+
+ -- Hajo Eichler <eichler.hajo@gmail.com>  Thu, 19 Nov 2012 15:30:00 +0100
+
 nagios-monit (0.0.3) unstable; urgency=low
 
   * Provide which services are in fail or unmonitored state.

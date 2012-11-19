@@ -41,6 +41,27 @@ EOF
         rc.should == Icinga::EXIT_OK
         stdout.string.should match(/OK: \(1=ok, 0=fail, 0=not monitored\)./)
       end
+      it "After the start of Monit we wait 5 minutes before starting the service status" do
+        xml = <<EOF
+<monit>
+  <server>
+   <uptime>120</uptime>
+  </server>
+  <service>
+    <name>system</name>
+    <status>1</status>
+    <monitor>2</monitor>
+  </service>
+</monit>
+EOF
+        Excon.stub({:method => :get}, {:body => xml, :status => 200})
+
+        args = [ "--min", "1" ]
+        rc = Icinga::CheckMonit.new(args, stdopts).run
+
+        rc.should == Icinga::EXIT_OK
+        stdout.string.should match(/OK: Monit startup less than 5 minutes ago./)
+      end
       it "Will return FAIL when the number of services in bad state is above or equal the critical level" do
         xml = <<EOF
 <monit>
