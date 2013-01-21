@@ -1,4 +1,4 @@
-#! /usr/bin/ruby
+#! /usr/bin/ruby1.8
 
 # A Nagios/Icinga plugin to check remote Monit installations.
 #
